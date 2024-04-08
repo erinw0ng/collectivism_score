@@ -11,6 +11,6 @@ https://docs.google.com/document/d/1Q9pkE5cQqsPFhi5TlSLBFkszY7PWIRjFRMW-zlLvlok/
 However, the voting data for county-level collectivism scores only contains 2016 voting data.
 
 *Reference:*
-Vandello, J. A., & Cohen, D. (1999). Patterns of individualism and collectivism across the United States. Journal of Personality and Social Psychology, 77(2), 279–292. https://doi.org/10.1037/0022-3514.77.2.279
+Vandello, J. A., & Cohen, D. (1999). Patterns of individualism and collectivism across the United States. Journal of Personality and Social Psychology, 77(2), 279–292. 
 
 *Apr 7th, 2024*
