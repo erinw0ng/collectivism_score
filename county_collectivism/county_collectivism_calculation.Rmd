@@ -66,7 +66,7 @@ Reverse coded items:
 
 notes: living with grandchildren, religion affiliation, and carpooling are not reverse coded
 
-After reverse coding, these items are summed as an overall collectivism score. I linear transformed the collectivism score, so that the score is from 0 to 100. The standardized alpha is 0.68.
+After reverse coding, these items are summed as an overall collectivism score. I linear transformed the collectivism score, so that the score is from 0 to 100. The standardized alpha is 0.43.
 
 ```{r, echo=FALSE}
 mergedfinal <- read.csv("/Users/erin/Desktop/county_collectivism/county_index.csv")
@@ -139,7 +139,7 @@ hist(data_all$county_collectivism_score,
      xlim = c(0, 100))
 
 
-#Cronbach's alpha: standardized alpha = 0.61
+#Cronbach's alpha: standardized alpha = 0.43
 library(psych)
 
 alpha <- alpha(data_all[, c("living_alone_reverse", "living_alone_65over_reverse", 
@@ -167,11 +167,11 @@ library(Hmisc)
 res2 <- rcorr(as.matrix(corrdata))
 res2
   
-res2$P[is.na(res2$P)] <- 1
+#res2$P[is.na(res2$P)] <- 1
   
 library(corrplot)
 corrplot(res2$r, type="upper", order="hclust", method="color",
-           p.mat = res2$P, sig.level = 0.05, insig = "pch", pch.cex = 2, pch = 4,
+           #p.mat = res2$P, sig.level = 0.05, insig = "pch", pch.cex = 2, pch = 4,
            addCoef.col = "black", number.cex = 0.6,
            tl.col = "black",tl.srt = 45,tl.cex = 0.8, 
            diag = FALSE)
