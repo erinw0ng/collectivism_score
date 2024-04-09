@@ -181,7 +181,7 @@ corrplot(res2$r, type="upper", order="hclust", method="color",
 
 
 
-#Combine state and county
+#Combine avg state and county
 ```{r, echo=FALSE}
 county_score <- read.csv("/Users/erin/Desktop/county_collectivism/county_collectivism_score_all.csv")
 
