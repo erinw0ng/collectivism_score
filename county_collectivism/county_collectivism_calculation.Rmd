@@ -11,23 +11,41 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#Combine new American Community Survey 2022 to 2016 voting data
+#Voting Data
 ```{r, echo=FALSE}
 setwd("/Users/erin/Desktop/county_collectivism")
 
-prev <- read.csv("/Users/erin/Desktop/county_collectivism/previous_data/ICscoreall.csv")
+libertarian <- read.csv("/Users/erin/Desktop/county_collectivism/libertarian/libertarian20_all.csv")
 
-prev_clean <- prev %>% 
-  select(2, 3, 9, 11, 19) %>% 
-  rename("prev_score" = "score",
-         "libertarian_vote16" = "voting.for.libertarian")
+summary(as.factor(libertarian$mode))
 
+library(dplyr)
+libertarian20 <- libertarian %>%
+  group_by(county_fips) %>%
+  summarise(
+    total_candidatevotes = sum(candidatevotes),
+    totalvotes = max(totalvotes)) %>% 
+  mutate(libertarian20 = total_candidatevotes / totalvotes) %>% 
+  select(county_fips, libertarian20)
+
+head(libertarian20)
+
+write.csv(libertarian20, "/Users/erin/Desktop/county_collectivism/libertarian/libertarian20_clean.csv")
+
+```
+
+
+#American Community Survey 2022
+```{r, echo=FALSE}
 acs_new <- read.csv("/Users/erin/Desktop/county_collectivism/American Community Survey 5-year/ACS22_5year_county.csv") #American Community Survey
 
-merged <- acs_new %>% 
-  left_join(prev_clean, by = c("county_fips" = "county.fips")) %>% 
-  mutate(county_name = str_remove(county_name, "\\s+County$")) %>% 
-  select(1, 10, 3:9, 12:13)
+library(tidyr)
+library(stringr)
+acs_clean <- acs_new %>% 
+  separate(county_state_name, into = c("county", "state"), sep = ", ") %>% 
+  mutate(county = str_remove(county, "\\s+County$")) 
+
+head(acs_clean)
 
 ```
 
@@ -38,22 +56,29 @@ religion <- read.csv("/Users/erin/Desktop/county_collectivism/religion/adherence
 head(religion)
 
 religion$county_fips <- gsub("^0+", "", religion$county_fips)
+
 religion <- religion %>%
-  mutate(county_fips = as.integer(county_fips))
+  mutate(county_fips = as.integer(county_fips)) %>% 
+  select(county_fips, religious_adherents)
+
+head(religion)
 
 ```
 
 #Combine 
 ```{r, echo=FALSE}
+merged <- acs_clean %>% 
+  left_join(libertarian20, by = "county_fips") 
+
 mergedfinal <- merged %>% 
   left_join(religion, by = "county_fips") %>% 
-  select(1:10, 12, 11)
+  select(-county_name)
+
 head(mergedfinal)
 
 write.csv(mergedfinal, "county_index.csv")
 
 ```
-
 
 
 #Scaling and Standardization
@@ -66,13 +91,11 @@ Reverse coded items:
 
 notes: living with grandchildren, religion affiliation, and carpooling are not reverse coded
 
-After reverse coding, these items are summed as an overall collectivism score. I linear transformed the collectivism score, so that the score is from 0 to 100. The standardized alpha is 0.43.
+After reverse coding, these items are summed as an overall collectivism score. I linear transformed the collectivism score, so that the score is from 0 to 100. The standardized alpha is 0.68.
 
 ```{r, echo=FALSE}
 mergedfinal <- read.csv("/Users/erin/Desktop/county_collectivism/county_index.csv")
 mergedfinal <- mergedfinal[,-1]
-#mergedfinal <- mergedfinal %>% 
-  #filter(state != "District of Columbia")
 
 colnames(mergedfinal)
 
@@ -85,25 +108,15 @@ mergedfinal$living_alone_65over_reverse <- 1 - mergedfinal$living_alone_65over
 mergedfinal$divorce_marriage_reverse <- 1 / mergedfinal$divorce_marriage
 #religion affiliation - not reversed
 #vote for libertarian
-mergedfinal$libertarian_vote16_reverse <- 1 - mergedfinal$libertarian_vote16
+mergedfinal$libertarian20_reverse <- 1 - mergedfinal$libertarian20
 #carpooling - not reversed
 #self-employed
 mergedfinal$self_employed_reverse <- 1 - mergedfinal$self_employed
 
 mergedfinal_short <- mergedfinal %>% 
   select(county_fips, living_alone_reverse, living_alone_65over_reverse, living_grandchildren, 
-         divorce_marriage_reverse, religious_adherents, libertarian_vote16_reverse,
+         divorce_marriage_reverse, religious_adherents, libertarian20_reverse,
          carpool_drive_alone, self_employed_reverse) 
-
-#check na in each column
-sum(is.na(mergedfinal_short$living_alone_reverse)) #0
-sum(is.na(mergedfinal_short$living_alone_65over_reverse)) #0
-sum(is.na(mergedfinal_short$living_grandchildren)) #0
-sum(is.na(mergedfinal_short$divorce_marriage_reverse)) #0
-sum(is.na(mergedfinal_short$religious_adherents)) #0
-sum(is.na(mergedfinal_short$libertarian_vote16_reverse)) #missing 474 counties
-sum(is.na(mergedfinal_short$carpool_drive_alone)) #0
-sum(is.na(mergedfinal_short$self_employed_reverse)) #0
 
 #scale
 data_cleaned <- mergedfinal_short %>% 
@@ -123,9 +136,6 @@ data_all <- merge(mergedfinal, data_scoreonly, by = "county_fips")
 
 write.csv(data_all, "/Users/erin/Desktop/county_collectivism/county_collectivism_score_all.csv")
 
-#compare the new score to prev score: r = 0.795, t = 50.944, df = 1514, p-value < 2.2e-16
-cor.test(data_all$prev_score, data_all$county_collectivism_raw)
-
 ```
 
 
@@ -135,7 +145,7 @@ cor.test(data_all$prev_score, data_all$county_collectivism_raw)
 hist(data_all$county_collectivism_score,
      main = "County Collectivism Score Distribution",
      xlab = "Collectivism Score",
-     ylim = c(0, 1250), 
+     ylim = c(0, 2000), 
      xlim = c(0, 100))
 
 
@@ -144,37 +154,33 @@ library(psych)
 
 alpha <- alpha(data_all[, c("living_alone_reverse", "living_alone_65over_reverse", 
                             "living_grandchildren", "divorce_marriage_reverse",
-                            "religious_adherents", "libertarian_vote16_reverse", 
+                            "religious_adherents", "libertarian20_reverse", 
                             "carpool_drive_alone", "self_employed_reverse")], 
                keys = c(1, 1, 1, 1, 1, 1, 1, 1))
 alpha
 
-
 #correlation matrix
 corrdata <- data_all %>% 
-    select(4:11, 19) %>% 
+    select(18, 4:11) %>% 
     rename("living alone" = "living_alone",
            "elderly people living alone" = "living_alone_65over",
            "living with grandchildren" = "living_grandchildren",
            "divorce to marriage ratio" = "divorce_marriage",
            "with religious affiliation" = "religious_adherents",
-           "voting Libertarian 2016" = "libertarian_vote16",
+           "voting Libertarian 2020" = "libertarian20",
            "carpooling to drive alone" = "carpool_drive_alone",
            "self-employed workers" = "self_employed",
            "county collectivism score" = "county_collectivism_score")
 
-library(Hmisc)
-res2 <- rcorr(as.matrix(corrdata))
-res2
-  
-#res2$P[is.na(res2$P)] <- 1
-  
+
+library(psych)
+index_corr <- corr.test(corrdata, use = "pairwise", method = "pearson", adjust = "bonferroni")
+index_corr
+
 library(corrplot)
-corrplot(res2$r, type="upper", order="hclust", method="color",
-           #p.mat = res2$P, sig.level = 0.05, insig = "pch", pch.cex = 2, pch = 4,
-           addCoef.col = "black", number.cex = 0.6,
-           tl.col = "black",tl.srt = 45,tl.cex = 0.8, 
-           diag = FALSE)
+corrplot(index_corr$r, method = "color", type = "full", order = "original",
+         tl.col = "black", tl.srt = 45, diag = FALSE,
+         addCoef.col = "black", number.cex = 0.6)
 
 
 ```
@@ -186,7 +192,7 @@ corrplot(res2$r, type="upper", order="hclust", method="color",
 county_score <- read.csv("/Users/erin/Desktop/county_collectivism/county_collectivism_score_all.csv")
 
 county_score <- county_score %>% 
-  select(county_fips, state, county_name, county_collectivism_score)
+  select(county_fips, state, county, county_collectivism_score)
 
 #get an averaged state score
 county_score_group <- county_score %>% 
@@ -201,7 +207,6 @@ score_all <- county_score_group %>%
 write.csv(score_all, "/Users/erin/Desktop/county_collectivism/score_all.csv")
 
 ```
-
 
 
  
